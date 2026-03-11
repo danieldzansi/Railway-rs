@@ -3,23 +3,15 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use tokio::process::Command;
 
-/// Configuration for a Nixpacks build.
 pub struct BuildConfig {
-    /// Path to the source directory to build.
     pub source: String,
-    /// Name (and optional tag) for the resulting Docker image.
     pub image_name: String,
-    /// Optional environment variables passed to the build (`--env KEY=VAL`).
     pub env: Vec<String>,
-    /// Optional list of Nix packages to install (`--pkgs`).
     pub pkgs: Vec<String>,
-    /// Optional build command override.
     pub build_cmd: Option<String>,
-    /// Optional start command override.
     pub start_cmd: Option<String>,
 }
 
-/// Verify that the `nixpacks` CLI is available on `$PATH`.
 pub async fn check_installed() -> Result<()> {
     let output = Command::new("nixpacks")
         .arg("--version")
@@ -93,14 +85,24 @@ pub async fn build(cfg: &BuildConfig) -> Result<String> {
 
     println!("Building image '{}' from {} …", cfg.image_name, cfg.source);
 
-    let status = Command::new("nixpacks")
+    let output = Command::new("nixpacks")
         .args(&args)
-        .status()
+        .output()
         .await
         .context("failed to run `nixpacks build`")?;
 
-    if !status.success() {
-        bail!("nixpacks build failed with {status}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if !stdout.is_empty() {
+        println!("{stdout}");
+    }
+
+    if !output.status.success() {
+        if !stderr.is_empty() {
+            eprintln!("{stderr}");
+        }
+        bail!("nixpacks build failed with {}", output.status);
     }
 
     println!("Image '{}' built successfully.", cfg.image_name);
