@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-// ── Requests ──
-
 #[derive(Debug, Deserialize)]
 pub struct DeployRequest {
     pub source: String,
