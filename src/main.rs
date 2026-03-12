@@ -1,18 +1,56 @@
+mod api;
 mod builder;
 mod container;
 mod engine;
 
 use std::env;
+use std::net::SocketAddr;
 
 use anyhow::Result;
 use builder::nixpacks::BuildConfig;
 use container::runner::RunConfig;
+use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let docker = engine::docker::connect()?;
+    tracing_subscriber::fmt::init();
 
     let args: Vec<String> = env::args().collect();
+
+    // `railway-rs serve [PORT]` → start the HTTP API server
+    if args.get(1).is_some_and(|a| a == "serve") {
+        return serve(&args).await;
+    }
+
+    // Otherwise: original CLI flow
+    cli(&args).await
+}
+
+async fn serve(args: &[String]) -> Result<()> {
+    let port: u16 = args
+        .get(2)
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(3001);
+
+    let docker = engine::docker::connect()?;
+    let app = api::router(docker);
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    println!("Railway API server listening on http://{addr}");
+
+    let listener = TcpListener::bind(addr).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async {
+            tokio::signal::ctrl_c().await.ok();
+            println!("\nShutting down API server …");
+        })
+        .await?;
+
+    Ok(())
+}
+
+async fn cli(args: &[String]) -> Result<()> {
+    let docker = engine::docker::connect()?;
 
     let (image, container_port, host_port, env) = if let Some(source) = args.get(1) {
 
