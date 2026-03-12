@@ -5,6 +5,9 @@ use bollard::models::{ContainerCreateBody, HostConfig, PortBinding};
 use bollard::query_parameters::{CreateContainerOptions, RemoveContainerOptions};
 use bollard::Docker;
 
+pub const LABEL_MANAGED_BY: &str = "managed-by";
+pub const LABEL_MANAGED_BY_VALUE: &str = "railway-rs";
+
 
 pub struct RunConfig {
     pub image: String,
@@ -28,11 +31,15 @@ pub async fn start(docker: &Docker, cfg: &RunConfig) -> Result<String> {
         ..Default::default()
     };
 
+    let mut labels = HashMap::new();
+    labels.insert(LABEL_MANAGED_BY.to_string(), LABEL_MANAGED_BY_VALUE.to_string());
+
     let container_config = ContainerCreateBody {
         image: Some(cfg.image.clone()),
         env: Some(cfg.env.clone()),
         exposed_ports: Some(vec![cfg.container_port.clone()]),
         host_config: Some(host_config),
+        labels: Some(labels),
         ..Default::default()
     };
 

@@ -70,7 +70,18 @@ pub async fn deploy(
 pub async fn list_containers(
     State(docker): State<AppState>,
 ) -> Result<Json<Vec<ContainerInfo>>, ApiError> {
-    let options = ListContainersOptionsBuilder::default().all(true).build();
+    use crate::container::runner::{LABEL_MANAGED_BY, LABEL_MANAGED_BY_VALUE};
+
+    let mut filters = std::collections::HashMap::new();
+    filters.insert(
+        "label".to_string(),
+        vec![format!("{LABEL_MANAGED_BY}={LABEL_MANAGED_BY_VALUE}")],
+    );
+
+    let options = ListContainersOptionsBuilder::default()
+        .all(true)
+        .filters(&filters)
+        .build();
 
     let containers = docker
         .list_containers(Some(options))
