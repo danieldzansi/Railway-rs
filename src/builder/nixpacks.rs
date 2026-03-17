@@ -29,18 +29,15 @@ pub async fn check_installed() -> Result<()> {
     Ok(())
 }
 
-/// Reads package.json and returns the major Node version (e.g. "22")
-/// Falls back to "22" if not found or unparseable
 fn detect_node_version(source: &str) -> Option<String> {
     let pkg_path = Path::new(source).join("package.json");
     if !pkg_path.exists() {
-        return None; // Not a Node project
+        return None; 
     }
 
     let content = std::fs::read_to_string(&pkg_path).ok()?;
     let json: serde_json::Value = serde_json::from_str(&content).ok()?;
 
-    // Try engines.node first (e.g. ">=18.0.0" or "22")
     if let Some(engines_node) = json["engines"]["node"].as_str() {
         let version: String = engines_node.chars().filter(|c| c.is_ascii_digit() || *c == '.').collect();
         let major = version.split('.').next()?;
@@ -48,8 +45,6 @@ fn detect_node_version(source: &str) -> Option<String> {
             return Some(major.to_string());
         }
     }
-
-    // Fall back to "22" for any Node project without engines specified
     Some("22".to_string())
 }
 
@@ -85,10 +80,8 @@ pub async fn build(cfg: &BuildConfig) -> Result<String> {
     args.push("--name".to_string());
     args.push(cfg.image_name.clone());
 
-    // Merge user-supplied env with auto-detected Node version
     let mut env = cfg.env.clone();
 
-    // If it's a Node project and NIXPACKS_NODE_VERSION isn't already set, inject it
     let already_set = env.iter().any(|e| e.starts_with("NIXPACKS_NODE_VERSION="));
     if !already_set {
         if let Some(node_version) = detect_node_version(&cfg.source) {
