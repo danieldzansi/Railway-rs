@@ -29,6 +29,30 @@ pub async fn check_installed() -> Result<()> {
     Ok(())
 }
 
+/// Reads package.json and returns the major Node version (e.g. "22")
+/// Falls back to "22" if not found or unparseable
+fn detect_node_version(source: &str) -> Option<String> {
+    let pkg_path = Path::new(source).join("package.json");
+    if !pkg_path.exists() {
+        return None; // Not a Node project
+    }
+
+    let content = std::fs::read_to_string(&pkg_path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
+
+    // Try engines.node first (e.g. ">=18.0.0" or "22")
+    if let Some(engines_node) = json["engines"]["node"].as_str() {
+        let version: String = engines_node.chars().filter(|c| c.is_ascii_digit() || *c == '.').collect();
+        let major = version.split('.').next()?;
+        if !major.is_empty() {
+            return Some(major.to_string());
+        }
+    }
+
+    // Fall back to "22" for any Node project without engines specified
+    Some("22".to_string())
+}
+
 pub async fn plan(source: &str) -> Result<String> {
     let source_path = Path::new(source);
     if !source_path.exists() {
@@ -61,9 +85,21 @@ pub async fn build(cfg: &BuildConfig) -> Result<String> {
     args.push("--name".to_string());
     args.push(cfg.image_name.clone());
 
-    for env in &cfg.env {
+    // Merge user-supplied env with auto-detected Node version
+    let mut env = cfg.env.clone();
+
+    // If it's a Node project and NIXPACKS_NODE_VERSION isn't already set, inject it
+    let already_set = env.iter().any(|e| e.starts_with("NIXPACKS_NODE_VERSION="));
+    if !already_set {
+        if let Some(node_version) = detect_node_version(&cfg.source) {
+            println!("Detected Node.js project, pinning NIXPACKS_NODE_VERSION={node_version}");
+            env.push(format!("NIXPACKS_NODE_VERSION={node_version}"));
+        }
+    }
+
+    for e in &env {
         args.push("--env".to_string());
-        args.push(env.clone());
+        args.push(e.clone());
     }
 
     if !cfg.pkgs.is_empty() {
