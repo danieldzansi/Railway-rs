@@ -71,20 +71,8 @@ pub async fn stop(docker: &Docker, id: &str) -> Result<()> {
         .stop_container(id, None)
         .await
         .context("failed to stop container")?;
-
-    // docker
-    //     // .remove_container(
-    //     //     id,
-    //     //     Some(RemoveContainerOptions {
-    //     //         force: true,
-    //     //         ..Default::default()
-    //     //     }),
-    //     // )
-    //     .await
-    //     .context("failed to remove container")?;
-
-    println!("Container {id} stopped ");
-    Ok(())
+         println!("Container {id} stopped ");
+         Ok(())
 }
 
 pub async fn remove(docker: &Docker, id : &str) ->Result <()>{
