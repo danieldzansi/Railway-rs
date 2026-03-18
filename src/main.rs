@@ -4,7 +4,7 @@ mod container;
 mod engine;
 
 use std::net::SocketAddr;
-
+use std::path::Path;
 use anyhow::Result;
 use builder::nixpacks::BuildConfig;
 use clap::{Parser, Subcommand};
@@ -102,6 +102,21 @@ async fn cmd_deploy(
 
     builder::nixpacks::check_installed().await?;
 
+    let app_name = if name == "railway-app:latest" {
+        Path::new(&source)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("railway-app")
+            .chars()
+            .map(|c| if c.is_alphanumeric() || c == '-' { c } else { '-' })
+            .collect::<String>()
+            .to_lowercase()
+    } else {
+        name.replace(':', "-")
+    };
+
+    println!("Deploying app: {app_name}");
+
     let plan = builder::nixpacks::plan(&source).await?;
     println!("--- Build plan ---\n{plan}------------------\n");
 
@@ -111,7 +126,7 @@ async fn cmd_deploy(
 
     let build_cfg = BuildConfig {
         source,
-        image_name: name.clone(),
+        image_name: app_name.clone(),
         env: env.clone(),
         pkgs,
         build_cmd,
@@ -122,8 +137,8 @@ async fn cmd_deploy(
 
     let container_port = format!("{port}/tcp");
     let run_cfg = RunConfig {
+        name: app_name.clone(),
         image: image.clone(),
-        name: format!("railway-{}", name.replace(':', "-")),
         container_port,
         host_port: port,
         env,
