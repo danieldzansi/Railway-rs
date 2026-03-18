@@ -84,3 +84,13 @@ pub async fn remove(docker: &Docker, id : &str) ->Result <()>{
     println!("Container {id} removed");
     Ok(())
 }
+
+pub async fn start_existing(docker: &Docker, id : &str) ->Result <()>{
+    docker 
+    .start_container(id , None)
+    .await
+    .context("failed to start container")?;
+
+    println!("Container started {id} started");
+    Ok(())
+}

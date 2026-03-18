@@ -56,7 +56,11 @@ enum Commands {
     },
     Remove {
         id : String,
+    },
+    Start{
+        id : String ,
     }
+    
 }
 
 #[tokio::main]
@@ -81,6 +85,7 @@ async fn main() -> Result<()> {
         Commands::Logs { id, tail } => cmd_logs(id, tail).await,
         Commands::Stop { id } => cmd_stop(id).await,
         Commands::Remove{ id } =>cmd_remove(id).await,
+        Commands::Start{ id } =>cmd_start(id).await,
     }
 }
 
@@ -315,5 +320,11 @@ async fn cmd_stop(id: String) -> Result<()> {
 async fn cmd_remove(id: String) -> Result <()>{
     let docker = engine::docker::connect()?;
     container::runner::remove(&docker, &id).await?;
+    Ok(())
+}
+
+async fn cmd_start(id: String) ->Result <()>{
+    let docker = engine::docker::connect()?;
+    container::runner::start_existing(&docker, &id).await?;
     Ok(())
 }
