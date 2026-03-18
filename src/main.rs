@@ -54,6 +54,9 @@ enum Commands {
     Stop {
         id: String,
     },
+    Remove {
+        id : String,
+    }
 }
 
 #[tokio::main]
@@ -77,6 +80,7 @@ async fn main() -> Result<()> {
         Commands::Inspect { id } => cmd_inspect(id).await,
         Commands::Logs { id, tail } => cmd_logs(id, tail).await,
         Commands::Stop { id } => cmd_stop(id).await,
+        Commands::Remove{ id } =>cmd_remove(id).await,
     }
 }
 
@@ -304,5 +308,12 @@ async fn cmd_logs(id: String, tail: u32) -> Result<()> {
 async fn cmd_stop(id: String) -> Result<()> {
     let docker = engine::docker::connect()?;
     container::runner::stop(&docker, &id).await?;
+    Ok(())
+}
+
+
+async fn cmd_remove(id: String) -> Result <()>{
+    let docker = engine::docker::connect()?;
+    container::runner::remove(&docker, &id).await?;
     Ok(())
 }
